@@ -1,0 +1,94 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Web app name"
+      }
+    },
+    "hostingPlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "Hosting plan name"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "metadata": {
+        "description": "Web app SKU"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Web app SKU capacity"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-01-01",
+      "name": "[parameters('hostingPlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[parameters('skuName')]",
+        "capacity": "[parameters('skuCapacity')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-01-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+        "siteConfig": {
+          "alwaysOn": false,
+          "scmType": "None"
+        }
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "resources": [
+        {
+          "name": "authsettingsV2",
+          "type": "config",
+          "apiVersion": "2021-01-01",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]"
+          ],
+          "properties": {
+            "platform": {
+              "enabled": true,
+              "runtimeVersion": "~1",
+              "configFilePath": "auth.json"
+            },
+            "globalValidation": {
+              "requireAuthentication": true,
+              "unauthenticatedClientAction": "RedirectToLoginPage"
+            },
+            "identityProviders": {
+              "azureActiveDirectory": {
+                "enabled": true,
+                "registration": {
+                  "openIdIssuer": "https://sts.windows.net/{tenantId}/",
+                  "clientId": "{clientId}",
+                  "clientSecretSettingName": "{clientSecretSettingName}"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
